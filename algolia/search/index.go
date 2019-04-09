@@ -80,6 +80,70 @@ func (i *Index) Delete(opts ...interface{}) (res DeleteTaskRes, err error) {
 	return
 }
 
+func (i *Index) DeleteReplica(replicaName string, opts ...interface{}) error {
+	settings, err := i.GetSettings()
+	if err != nil {
+		return fmt.Errorf("cannot retrieve settings: %v", err)
+	}
+
+	if settings.Replicas == nil || settings.Replicas.Get() == nil {
+		return fmt.Errorf("no replica found for this index: %v", err)
+	}
+
+	var (
+		found  bool
+		others []string
+	)
+
+	for _, replica := range settings.Replicas.Get() {
+		if replica == replicaName {
+			found = true
+		} else {
+			others = append(others, replica)
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("replica %q not found", replicaName)
+	}
+
+	{
+		res, err := i.SetSettings(Settings{Replicas: opt.Replicas(others...)})
+		if err != nil {
+			return fmt.Errorf("cannot SetSettings with new replica set: %v", err)
+		}
+		if err := res.Wait(); err != nil {
+			return fmt.Errorf("error while waiting for SetSettings to complete: %v", err)
+		}
+	}
+
+	replicaIndex := newIndex(i.client, replicaName)
+
+	{
+		res, err := replicaIndex.SetSettings(Settings{Primary: opt.Primary("")})
+		if err != nil {
+			return fmt.Errorf("cannot unset `primary` settings from replica index %q: %v", replicaName, err)
+		}
+		if err := res.Wait(); err != nil {
+			return fmt.Errorf("error while waiting for replica SetSettings to complete: %v", err)
+		}
+	}
+
+	time.Sleep(10 * time.Second)
+
+	{
+		res, err := replicaIndex.Delete()
+		if err != nil {
+			return fmt.Errorf("cannot delete replica %q: %v", replicaName, err)
+		}
+		if err := res.Wait(); err != nil {
+			return fmt.Errorf("error while waiting for replica deletion to complete: %v", err)
+		}
+	}
+
+	return nil
+}
+
 func (i *Index) GetStatus(taskID int) (res TaskStatusRes, err error) {
 	path := i.path("/task/%d", taskID)
 	err = i.transport.Request(&res, http.MethodGet, path, nil, call.Read)
