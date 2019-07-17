@@ -64,6 +64,7 @@ type Settings struct {
 	MaxFacetHits                            *opt.MaxFacetHitsOption                            `json:"maxFacetHits,omitempty"`
 	Advanced                                *opt.AdvancedOption                                `json:"advanced,omitempty"`
 	AttributeCriteriaComputedByMinProximity *opt.AttributeCriteriaComputedByMinProximityOption `json:"attributeCriteriaComputedByMinProximity,omitempty"`
+	UserData                                *opt.UserDataOption                                `json:"userData,omitempty"`
 	CustomSettings                          map[string]interface{}                             `json:"-"`
 }
 
@@ -158,6 +159,7 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		"maxFacetHits",
 		"advanced",
 		"attributeCriteriaComputedByMinProximity",
+		"userData",
 	} {
 		delete(s.CustomSettings, knownSetting)
 	}
@@ -392,6 +394,10 @@ func (s Settings) Equal(s2 Settings) bool {
 		debug.Printf("Settings.AttributeCriteriaComputedByMinProximity are not equal: %#v != %#v\n", s.AttributeCriteriaComputedByMinProximity, s2.AttributeCriteriaComputedByMinProximity)
 		return false
 	}
+	if !opt.UserDataEqual(s.UserData, s2.UserData) {
+		debug.Printf("Settings.UserData are not equal: %#v != %#v\n", s.UserData, s2.UserData)
+		return false
+	}
 	return true
 }
 
@@ -448,6 +454,7 @@ func (s Settings) String() string {
 	settingsStr += fmt.Sprintf("\tMaxFacetHits: %v,\n", stringifyReturnValues(s.MaxFacetHits.Get()))
 	settingsStr += fmt.Sprintf("\tAdvanced: %v,\n", stringifyReturnValues(s.Advanced.Get()))
 	settingsStr += fmt.Sprintf("\tAttributeCriteriaComputedByMinProximity: %v,\n", stringifyReturnValues(s.AttributeCriteriaComputedByMinProximity.Get()))
+	settingsStr += fmt.Sprintf("\tUserData: %v,\n", stringifyReturnValues(s.UserData.Get()))
 
 	settingsStr += "\tCustomSettings{\n"
 	for k, v := range s.CustomSettings {
